@@ -4,6 +4,7 @@ import au.com.bytecode.opencsv.CSVReader;
 import hex.ModelCategory;
 import hex.genmodel.GenModel;
 import hex.genmodel.MojoModel;
+import hex.genmodel.algos.gam.GamMojoModelBase;
 import hex.genmodel.algos.glrm.GlrmMojoModel;
 import hex.genmodel.algos.pca.PCAMojoModel;
 import hex.genmodel.algos.tree.SharedTreeMojoModel;
@@ -36,6 +37,7 @@ public class PredictCsv {
   public boolean predictContributions = false; // enable tree models to predict contributions instead of regular predictions
   boolean returnGLRMReconstruct = false; // for GLRM, return x factor by default unless set this to true
   public int glrmIterNumber = -1;  // for GLRM, default to 100.
+  private int predictColumnNum;  // number of predictors found in input column names and gam predictor column names variable
   // Model instance
   private EasyPredictModelWrapper model;
 
@@ -238,8 +240,18 @@ public class PredictCsv {
       String[] splitLine;
       //Reader in the column names here.
       if ((splitLine = reader.readNext()) != null) {
-        inputColumnNames = splitLine;
+        inputColumnNames = splitLine; // contains the column names of input data
         checkMissingColumns(inputColumnNames);
+        if (model.m instanceof GamMojoModelBase) {
+          GamMojoModelBase gamModel = (GamMojoModelBase) model.m;
+          predictColumnNum = 0;
+          String[] colNames = gamModel.get_names(); // contains predictor columns for Gam including expanded gam columns
+          for (String cName : colNames) {
+            if (Arrays.asList(inputColumnNames).contains(cName))
+              predictColumnNum++; // count column names that are present both in input data row and gam predictor names
+          }
+          model.setPredictColumnNum(predictColumnNum);   
+        }
       }
       else  // file empty, throw an error
         throw new Exception("Input dataset file is empty!");

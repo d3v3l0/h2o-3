@@ -3,6 +3,7 @@ package hex.genmodel.easy;
 import hex.ModelCategory;
 import hex.genmodel.*;
 import hex.genmodel.algos.deeplearning.DeeplearningMojoModel;
+import hex.genmodel.algos.gam.GamMojoModelBase;
 import hex.genmodel.algos.glrm.GlrmMojoModel;
 import hex.genmodel.algos.targetencoder.TargetEncoderMojoModel;
 import hex.genmodel.algos.tree.SharedTreeMojoModel;
@@ -62,8 +63,14 @@ public class EasyPredictModelWrapper implements Serializable {
   private final boolean enableStagedProbabilities; // if set true, staged probabilities from tree agos are returned
   private final boolean enableContributions; // if set to true, will return prediction contributions (SHAP values) - for GBM & XGBoost
   private final int glrmIterNumber; // allow user to set GLRM mojo iteration number in constructing x.
-
   private final PredictContributions predictContributions;
+  private int predictColumnNum; // Count number of columns that are found in input data row and gam predictor columns
+
+  public void setPredictColumnNum(int predNum) throws IOException {
+    if (predNum < 0)
+      throw new IOException("predictColumnNum is an integer and cannot be negative");
+    predictColumnNum = predNum;
+  }
   
   /**
    * Observer interface with methods corresponding to errors during the prediction.
@@ -130,7 +137,7 @@ public class EasyPredictModelWrapper implements Serializable {
       convertUnknownCategoricalLevelsToNa = value;
       return this;
     }
-
+    
     public Config setEnableLeafAssignment(boolean val) throws IOException {
       if (val && (model==null))
         throw new IOException("enableLeafAssignment cannot be set with null model.  Call setModel() first.");
@@ -876,7 +883,14 @@ public class EasyPredictModelWrapper implements Serializable {
   }
 
   protected double[] fillRawData(RowData data, double[] rawData) throws PredictException {
-    return rowDataConverter.convert(data, rawData);
+    if ((predictColumnNum < rawData.length) && (m instanceof GamMojoModelBase)) {  // need to add the expanded gam columns to data
+      GamMojoModelBase gamM = (GamMojoModelBase) m;
+      rawData = nanArray(gamM.get_totFeatureSize());  // expand the rawData array for non-center data
+      rawData = rowDataConverter.convert(data, rawData);  // copy over regular predictor values
+      gamM.addExpandGamCols(rawData, data); // add expaned gam columns
+      return rawData;
+    } else 
+      return rowDataConverter.convert(data, rawData);
   }
 
   protected double[] predict(RowData data, double offset, double[] preds) throws PredictException {

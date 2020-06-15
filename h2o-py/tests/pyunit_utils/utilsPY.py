@@ -3468,8 +3468,8 @@ def compare_frames_local(f1, f2, prob=0.5, tol=1e-6, returnResult=False):
     :param returnResult:
     :return:
     '''
-    assert (f1.nrow==f2.nrow) and (f1.ncol==f2.ncol), "Frame 1 row {0}, col {1}.  Frame 2 row {2}, col {3}.  " \
-                                                      "They are different.".format(f1.nrow, f1.ncol, f2.nrow, f2.ncol)
+    assert (f1.nrow==f2.nrow) and (f1.ncol==f2.ncol), "Frame 1 row {0}, col {1}.  Frame 2 row {2}.  They are " \
+                                                      "different.".format(f1.nrow, f1.ncol, f2.nrow, f2.ncol)
     typeDict = f1.types
     frameNames = f1.names
 
@@ -3643,6 +3643,20 @@ def build_save_model_GLM(params, x, train, respName):
     model.download_mojo(path=TMPDIR)    # save mojo
     return model
 
+def build_save_model_GAM(params, x, train, respName):
+    # build a model
+    model = H2OGeneralizedAdditiveEstimator(**params)
+    model.train(x=x, y=respName, training_frame=train)
+    # save model
+    regex = re.compile("[+\\-* !@#$%^&()={}\\[\\]|;:'\"<>,.?/]")
+    MOJONAME = regex.sub("_", model._id)
+
+    print("Downloading Java prediction model code from H2O")
+    TMPDIR = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath('__file__')), "..", "results", MOJONAME))
+    os.makedirs(TMPDIR)
+    model.download_mojo(path=TMPDIR)    # save mojo
+    return model
+
 def build_save_model_GBM(params, x, train, respName):
     # build a model
     model = H2OGradientBoostingEstimator(**params)
@@ -3686,6 +3700,8 @@ def random_dataset(response_type, verbose=True, ncol_upper=25000, ncol_lower=150
         fractions[k] /= sum_fractions
     if response_type == 'binomial':
         response_factors = 2
+    elif response_type == 'gaussian':
+        response_factors = 1
     else:
         response_factors = random.randint(3, 10)
     df = h2o.create_frame(rows=random.randint(ncol_lower, ncol_upper) + NTESTROWS, cols=random.randint(3, 20),

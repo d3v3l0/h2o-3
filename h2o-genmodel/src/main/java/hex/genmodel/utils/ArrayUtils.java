@@ -25,6 +25,31 @@ public class ArrayUtils {
     return sum;
   }
 
+  public static double[] flat(double[][] arr) {
+    if (arr == null) return null;
+    if (arr.length == 0) return null;
+    int tlen = 0;
+    for (double[] t : arr) tlen += (t != null) ? t.length : 0;
+    double[] result = Arrays.copyOf(arr[0], tlen);
+    int j = arr[0].length;
+    for (int i = 1; i < arr.length; i++) {
+      if (arr[i] == null)
+        continue;
+      System.arraycopy(arr[i], 0, result, j, arr[i].length);
+      j += arr[i].length;
+    }
+    return result;
+  }
+  
+  public static double[] eleDiff(final double[] from) {
+    int arryLen = from.length-1;
+    double[] cumsumR = new double[arryLen];
+    for (int index = 0; index < arryLen; index++) {
+      cumsumR[index] = from[index+1]-from[index];
+    }
+    return cumsumR;
+  }
+
   /**
    * Check to see if a column is a boolean column.  A boolean column should contains only two
    * levels and the string describing the domains should be true/false
